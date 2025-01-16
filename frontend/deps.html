@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AZ-BOM</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script src="https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js"></script>
+    <script src="azbom.js"></script>
+</head>
+
+<body>
+    <script>
+        var panzoom = null; // Panzoom instance
+
+
+        function on_repo_changed() {
+            var repo = document.getElementById("selectRepos").value;
+            load_select('api/projects?repo=' + repo, 'selectProjects');
+        }
+
+        function on_load() {
+            mermaid.initialize({ startOnLoad: false, maxEdges: 2500 });
+            load_select('api/repositories', 'selectRepos');
+            load_select('api/projects', 'selectProjects');
+            load_label('api/version', 'lblDBUpdated', 'db_created');
+
+            // initialize Panzoom on an doagram element
+            const elem = document.getElementById('diagram')
+            panzoom = Panzoom(elem, { canvas: true, minScale: 1, contain: 'outside' })
+            elem.addEventListener('wheel', panzoom.zoomWithWheel)
+            elem.addEventListener('wheel', function (event) {
+                if (!event.shiftKey) return
+                panzoom.zoomWithWheel(event)
+            })
+        }
+
+        async function renderMermaid() {
+            var project = document.getElementById("selectProjects").value;
+            var dependsOn = document.getElementById("chkDependsOn").checked;
+            var dependsBy = document.getElementById("chkDependsBy").checked;
+            var onlyMyProjects = document.getElementById("chkOnlyMyProjects").checked;
+
+            var url = 'api/references?project=' + project + '&dependsOn=' + dependsOn + '&dependsBy=' + dependsBy + '&onlyMyProjects=' + onlyMyProjects;
+            var response = await fetch(url);
+            var data = await response.json();
+            var diagramDiv = document.getElementById("diagram");
+            diagramDiv.innerHTML = '<pre class="mermaid">' + data.diagram + '</pre>';
+            panzoom.reset();
+            mermaid.run();
+        }
+
+        document.addEventListener("DOMContentLoaded", on_load);
+    </script>
+
+    <nav class="navbar" role="navigation" aria-label="main navigation" style="position: absolute; right: 10px;" >
+        <div class="navbar-brand">
+            <a class="navbar-item" href="bom.html" title="Software Bil of Materials">
+                <button class="button is-primary">SBOM</button>
+            </a>
+            <a class="navbar-item" href="deps.html" title="Project Dependencies">
+                <button class="button is-primary">Dependencies</button>
+            </a>
+        </div>
+    </nav>
+
+    <div class="section" style="padding-top: 10px">
+
+        <h1 class="title">AZ-BOM</h1>
+        <p class="subtitle"><strong>Smart</strong> Software Bill of Materials. Last Updated: <label
+                id="lblDBUpdated"></label>.</p>
+
+        <div class="panel-block buttons">
+            <label class="label">Repo: </label>
+            <div class="select">
+                <select id="selectRepos" onchange="on_repo_changed()"></select>
+            </div>
+            <label class="label">Project: </label>
+            <div class="select">
+                <select id="selectProjects"></select>
+            </div>
+            <label class="checkbox"><input id="chkDependsOn" type="checkbox" value="checked" checked />Depends
+                On</label>
+            <label class="checkbox"><input id="chkDependsBy" type="checkbox" value="checked" checked />Depends
+                By</label>
+            <label class="checkbox"><input id="chkOnlyMyProjects" type="checkbox" value="checked" checked />Only My
+                Projects</label>
+            <button class="button" onclick="renderMermaid()">Render</button>
+        </div>
+
+        <h2 class="title">Dependencies</h2>
+        <div> <!-- need this for panzoom-->
+            <div id="diagram" class="card">
+                <pre id="mermaid" class="mermaid"></pre>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
