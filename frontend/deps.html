@@ -52,17 +52,32 @@
             mermaid.run();
         }
 
+        function exportSVG() {
+            var svg = document.querySelector('.mermaid').innerHTML;
+            var blob = new Blob([svg], { type: 'image/svg+xml' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'diagram.svg';
+            a.click();
+        }
+
         document.addEventListener("DOMContentLoaded", on_load);
     </script>
 
     <nav class="navbar" role="navigation" aria-label="main navigation" style="position: absolute; right: 10px;" >
         <div class="navbar-brand">
+            <a class="navbar-item"  title="Software Bil of Materials">
+                <button class="button is-primary" onclick="exportSVG()" >Download Diagram</button>
+            </a>            
+
             <a class="navbar-item" href="bom.html" title="Software Bil of Materials">
                 <button class="button is-primary">SBOM</button>
             </a>
             <a class="navbar-item" href="deps.html" title="Project Dependencies">
                 <button class="button is-primary">Dependencies</button>
             </a>
+            
         </div>
     </nav>
 
@@ -88,8 +103,8 @@
             <label class="checkbox"><input id="chkOnlyMyProjects" type="checkbox" value="checked" checked />Only My
                 Projects</label>
             <button class="button" onclick="renderMermaid()">Render</button>
-        </div>
-
+        </div>        
+        
         <h2 class="title">Dependencies</h2>
         <div> <!-- need this for panzoom-->
             <div id="diagram" class="card">
