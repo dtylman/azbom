@@ -42,6 +42,11 @@ func (s *Server) Start(ctx context.Context) error {
 		HTML5:  true,
 	}))
 
+	s.e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{echo.GET, echo.HEAD, echo.PUT, echo.PATCH, echo.POST, echo.DELETE},
+	}))
+
 	s.initRoutes()
 
 	err := s.initDB(ctx)
