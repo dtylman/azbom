@@ -20,12 +20,12 @@ class AboutBoxState extends State<AboutBox> {
   @override
   Widget build(BuildContext context) {
     var ver = _version["version"];
-    var db_created = _version["db_created"];
+    var dbCreated = _version["db_created"];
 
     return SizedBox(
         child: Column(children: [
       Padding(padding: const EdgeInsets.all(8.0), child: Text("Version: $ver")),
-      Padding(padding: const EdgeInsets.all(8.0), child: Text("Updated: $db_created")),
+      Padding(padding: const EdgeInsets.all(8.0), child: Text("Updated: $dbCreated")),
       Padding(
         padding: const EdgeInsets.all(8.0),
         child: TextButton(
@@ -40,7 +40,7 @@ class AboutBoxState extends State<AboutBox> {
     showAboutDialog(
       context: context,
       applicationName: 'Azure SBOM',
-      applicationVersion: '1.0.0',
+      applicationVersion: _version["version"],
       children: [
         Text('This is an application to manage Azure SBOM.'),
       ],
