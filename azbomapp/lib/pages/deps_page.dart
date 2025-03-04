@@ -1,24 +1,74 @@
+import 'package:azbomapp/services/backend.dart';
 import 'package:flutter/material.dart';
-import 'package:pluto_grid/pluto_grid.dart';
+import 'package:graphview/GraphView.dart';
 
-class DepsPage extends StatelessWidget {
+class DepsPage extends StatefulWidget {
   const DepsPage({super.key});
 
   @override
+  State<DepsPage> createState() => DepsPageState();
+}
+
+class DepsPageState extends State<DepsPage> {
+  ReferencesResponse? _references;
+
+  @override
+  void initState() {
+    super.initState();
+    loadRefs();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text('DepsPage Page'),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Back to Home'),
-          ),
-        ],
+    if (_references == null) {
+      return Center(child: CircularProgressIndicator());
+    }
+    Graph graph = Graph();
+    for (ProjectReference ref in _references!.references) {
+      graph.addEdge(Node.Id(ref.from), Node.Id(ref.to));
+    }
+    return InteractiveViewer(
+      constrained: false,
+      child: GraphView(
+        graph: graph,
+        algorithm: SugiyamaAlgorithm(
+          SugiyamaConfiguration()..orientation = SugiyamaConfiguration.ORIENTATION_LEFT_RIGHT,
+        ),
+        // algorithm: FruchtermanReingoldAlgorithm(
+        //   attractionPercentage: 1,
+        //   renderer: ArrowEdgeRenderer(),
+        //   repulsionRate: 2,
+        // ),
+        builder: nodeBuilder,
       ),
     );
+  }
+
+  void loadRefs() async {
+    ReferencesRequest? req = ReferencesRequest(
+        project: 'JifiTool',
+        dependsOn: true,
+        dependsBy: true,
+        onlyMyProjects: true);
+    ReferencesResponse refs = await Backend.getRefs(req);
+    setState(() {
+      _references = refs;
+    });
+  }
+
+  Widget nodeBuilder(Node node) {
+    var boxShadow = BoxShadow(color: Colors.blue[100]!, spreadRadius: 1);
+    return InkWell(
+        onTap: () {
+          print('Tapped on node: ${node.key}');
+        },
+        child: Container(
+           padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+             borderRadius: BorderRadius.circular(4),
+            boxShadow: [boxShadow],
+          ),
+          child: Text(node.key!.value.toString()),
+        ));
   }
 }

@@ -3,7 +3,7 @@ package sbom
 // ProjectReferences is a struct that holds the references between projects
 type ProjectReferences struct {
 	//References holds a list of References between projects (from->to many)
-	References map[string]map[string]bool
+	References map[string]map[string]bool `json:"references"`
 }
 
 // NewProjectReferences creates a new ProjectReferences

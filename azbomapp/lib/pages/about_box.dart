@@ -1,4 +1,4 @@
-import 'package:azbomapp/services/client.dart';
+import 'package:azbomapp/services/backend.dart';
 import 'package:flutter/material.dart';
 
 class AboutBox extends StatefulWidget {
@@ -48,7 +48,7 @@ class AboutBoxState extends State<AboutBox> {
   }
   
   void _getVersion() async{    
-    var version = await Client.getVersion();
+    var version = await Backend.getVersion();
     setState(() {
       _version = version;
     });

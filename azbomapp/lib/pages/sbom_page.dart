@@ -1,4 +1,4 @@
-import 'package:azbomapp/services/client.dart';
+import 'package:azbomapp/services/backend.dart';
 import 'package:flutter/material.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 
@@ -16,9 +16,9 @@ class _SbomPageState extends State<SbomPage> {
 
   @override
   void initState() {
+    super.initState();
     _getBOM();
     _initTable();
-    super.initState();
   }
 
   @override
@@ -39,7 +39,7 @@ class _SbomPageState extends State<SbomPage> {
   }
 
   void _getBOM() async {
-    var bom = await Client.getBOM();
+    var bom = await Backend.getBOM();
     setState(() {
       _bom = bom;
       _initTable();
@@ -65,7 +65,6 @@ class _SbomPageState extends State<SbomPage> {
     ]);
 
     for (var item in _bom) {
-      print(item);
       rows.add(
         PlutoRow(
           cells: {
