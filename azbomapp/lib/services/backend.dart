@@ -120,4 +120,21 @@ class Backend {
       throw Exception('Failed to load refs');
     }
   }
+
+  static Future<Map<String, dynamic>> refreshDatabase(String organizationUrl, String pat) async {
+    final response = await http.post(
+      Uri.parse('$baseURL/api/refresh'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'organization_url': organizationUrl,
+        'pat': pat,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to refresh database: ${response.body}');
+    }
+  }
 }

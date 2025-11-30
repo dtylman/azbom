@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"sort"
@@ -23,6 +24,7 @@ func (s *Server) initRoutes() {
 
 	// BOM page
 	api.GET("/bom", s.handleBOM)
+	api.POST("/refresh", s.handleRefresh)
 }
 
 // VersionResponse is the response for the version endpoint
@@ -200,4 +202,66 @@ func (s *Server) handleBOM(c echo.Context) error {
 		return strings.ToLower(allProjects[i].RepoName) < strings.ToLower(allProjects[j].RepoName)
 	})
 	return c.JSON(http.StatusOK, allProjects)
+}
+
+// RefreshRequest represents the request for refreshing the database
+type RefreshRequest struct {
+	OrganizationURL string `json:"organization_url"`
+	Pat             string `json:"pat"`
+}
+
+// RefreshResponse represents the response for the refresh endpoint
+type RefreshResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+func (s *Server) handleRefresh(c echo.Context) error {
+	var req RefreshRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, RefreshResponse{
+			Status:  "error",
+			Message: "Invalid request format",
+		})
+	}
+
+	if req.OrganizationURL == "" || req.Pat == "" {
+		return c.JSON(http.StatusBadRequest, RefreshResponse{
+			Status:  "error",
+			Message: "Organization URL and PAT are required",
+		})
+	}
+
+	// Start the refresh process in a goroutine since it takes time
+	go func() {
+		ctx := context.Background()
+		err := s.updateDBWithCredentials(ctx, req.OrganizationURL, req.Pat)
+		if err != nil {
+			// Log error for server monitoring
+			// In a real implementation, you might want to store this status
+			// so the client can query it later
+			println("Error updating database:", err.Error())
+		}
+	}()
+
+	return c.JSON(http.StatusOK, RefreshResponse{
+		Status:  "success",
+		Message: "Database refresh started. This may take several minutes.",
+	})
+}
+
+// updateDBWithCredentials updates the database using provided credentials
+func (s *Server) updateDBWithCredentials(ctx context.Context, orgURL, pat string) error {
+	a := sbom.NewAnalyzer(orgURL, pat)
+	err := a.Analyze(ctx)
+	if err != nil {
+		return err
+	}
+
+	s.db = a.GetDB()
+	err = s.db.Save()
+	if err != nil {
+		return err
+	}
+	return s.db.Load()
 }
