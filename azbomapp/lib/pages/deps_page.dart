@@ -17,8 +17,8 @@ class DepsPageState extends State<DepsPage> {
   bool _onlyMyProjects = true;
   bool _isLoading = false;
   bool _isLoadingProjects = true;
-  List<String> _projects = [];
-  List<String> _filteredProjects = [];
+  List<ProjectSummary> _projects = [];
+  List<ProjectSummary> _filteredProjects = [];
   TextEditingController _projectSearchController = TextEditingController();
   bool _showProjectDropdown = false;
   Graph? _graph;
@@ -148,11 +148,12 @@ class DepsPageState extends State<DepsPage> {
                                         itemCount: _filteredProjects.length,
                                         itemBuilder: (context, index) {
                                           return ListTile(
-                                            title: Text(_filteredProjects[index]),
+                                            title: Text(_filteredProjects[index].name),
+                                            subtitle: Text(_filteredProjects[index].repoName),
                                             onTap: () {
                                               setState(() {
-                                                _selectedProject = _filteredProjects[index];
-                                                _projectSearchController.text = _filteredProjects[index];
+                                                _selectedProject = _filteredProjects[index].name;
+                                                _projectSearchController.text = _filteredProjects[index].name;
                                                 _showProjectDropdown = false;
                                               });
                                               loadRefs(); // Auto-refresh when project changes
@@ -296,18 +297,7 @@ class DepsPageState extends State<DepsPage> {
     });
     
     try {
-      final bomData = await Backend.getBOM();
-      List<String> projects = [];
-      
-      // Extract project names from the BOM data
-      // Assuming the BOM contains projects with names - adjust based on actual structure
-      if (bomData is Map<String, dynamic> && bomData.containsKey('projects')) {
-        List<dynamic> projectsList = bomData['projects'];
-        projects = projectsList.map((project) => project['name'].toString()).toList();
-      } else if (bomData is List) {
-        // If BOM is a list of projects
-        projects = bomData.map((project) => project['name'].toString()).toList();
-      }
+      List<ProjectSummary> projects = await Backend.getProjects();
       
       setState(() {
         _projects = projects;
@@ -328,7 +318,7 @@ class DepsPageState extends State<DepsPage> {
         _filteredProjects = _projects;
       } else {
         _filteredProjects = _projects
-            .where((project) => project.toLowerCase().contains(query.toLowerCase()))
+            .where((project) => project.name.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -356,8 +346,7 @@ class DepsPageState extends State<DepsPage> {
       
       // Build the graph
       Graph graph = Graph();
-      for (ProjectReference ref in refs.references) {
-        print('Adding edge from ${ref.from} to ${ref.to}');
+      for (ProjectReference ref in refs.references) {        
         graph.addEdge(Node.Id(ref.from), Node.Id(ref.to));
       }
       

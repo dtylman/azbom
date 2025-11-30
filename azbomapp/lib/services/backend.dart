@@ -1,6 +1,35 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+class ProjectSummary {
+  String name;
+  String repoName;
+  String basePath;
+  String targetFramework;
+  String projectFile;
+  String mainFile;
+
+  ProjectSummary({
+    required this.name,
+    required this.repoName,
+    required this.basePath,
+    required this.targetFramework,
+    required this.projectFile,
+    required this.mainFile,
+  });
+
+  factory ProjectSummary.fromJson(Map<String, dynamic> json) {
+    return ProjectSummary(
+      name: json['name'] ?? '',
+      repoName: json['repo_name'] ?? '',
+      basePath: json['base_path'] ?? '',
+      targetFramework: json['target_framework'] ?? '',
+      projectFile: json['project_file'] ?? '',
+      mainFile: json['main_file'] ?? '',
+    );
+  }
+}
+
  class ProjectReference {
   String from;
   String to;
@@ -60,6 +89,20 @@ class Backend {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to load BOM');
+    }
+  }
+
+  static Future<List<ProjectSummary>> getProjects() async {
+    final response = await http.get(Uri.parse('$baseURL/api/projects'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((project) => ProjectSummary.fromJson(project)).toList();
+      } else {
+        return [];
+      }
+    } else {
+      throw Exception('Failed to load projects');
     }
   }
    

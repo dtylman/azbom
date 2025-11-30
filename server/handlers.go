@@ -133,13 +133,59 @@ func (s *Server) handlerRepositories(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Repositories())
 }
 
+type ProjectSummary struct {
+	Name string `json:"name"`
+	// RepoName is the name of the repository
+	RepoName string `json:"repo_name"`
+	// BasePath is the base path of the project
+	BasePath string `json:"base_path"`
+	// TargetFramework is the target framework of the project
+	TargetFramework string `json:"target_framework"`
+	// ProjectFile is the path to the project file
+	ProjectFile string `json:"project_file"`
+	// MainFile is the path to the main file
+	MainFile string `json:"main_file"`
+}
+
 func (s *Server) handleProjects(c echo.Context) error {
 	internalOnly := c.QueryParam("internal")
 	repo := c.QueryParam("repo")
-	if internalOnly == "false" {
-		return c.JSON(http.StatusOK, s.db.GetProjects(false, repo))
+	io := strings.EqualFold(internalOnly, "true")
+
+	var projects []ProjectSummary
+
+	for _, p := range s.db.Projects {
+		if !p.IsProject() {
+			continue
+		}
+		if io || !s.db.HasProject(p.Name) {
+			continue
+		}
+		if repo != "" && !strings.EqualFold(p.RepoName, repo) {
+			continue
+		}
+		if p.Name == "" {
+			continue
+		}
+		projects = append(projects, ProjectSummary{
+			Name:            p.Name,
+			RepoName:        p.RepoName,
+			BasePath:        p.BasePath,
+			TargetFramework: p.TargetFramework,
+			ProjectFile:     p.ProjectFile,
+			MainFile:        p.MainFile,
+		})
+
 	}
-	return c.JSON(http.StatusOK, s.db.GetProjects(true, repo))
+
+	sort.Slice(projects, func(i, j int) bool {
+		if projects[i].RepoName == projects[j].RepoName {
+			return strings.ToLower(projects[i].Name) < strings.ToLower(projects[j].Name)
+		}
+		return strings.ToLower(projects[i].RepoName) < strings.ToLower(projects[j].RepoName)
+	})
+	return c.JSON(http.StatusOK, projects)
+
 }
 
 func (s *Server) handleBOM(c echo.Context) error {
