@@ -40,6 +40,17 @@ class _SbomPageState extends State<SbomPage> {
 
   void _getBOM() async {
     var bom = await Backend.getBOM();
+    for (var item in bom) {
+      var dockerFiles = item['docker_files'];
+      if( ( dockerFiles!=null) && (dockerFiles.length > 0) ){        
+        var name = item['name'];
+        if ( (name == null) || (name == '') ){
+          name = item['base_path'];
+        }
+        var line = "|${item['repo_name']}|$name||";
+        print(line);
+      }
+    }
     setState(() {
       _bom = bom;
       _initTable();
