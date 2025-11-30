@@ -22,6 +22,7 @@ class DepsPageState extends State<DepsPage> {
   TextEditingController _projectSearchController = TextEditingController();
   bool _showProjectDropdown = false;
   Graph? _graph;
+  Map<String, ProjectSummary> _projectMap = {};
 
   @override
   void initState() {
@@ -299,9 +300,16 @@ class DepsPageState extends State<DepsPage> {
     try {
       List<ProjectSummary> projects = await Backend.getProjects();
       
+      // Create a map for quick project lookup
+      Map<String, ProjectSummary> projectMap = {};
+      for (var project in projects) {
+        projectMap[project.name] = project;
+      }
+      
       setState(() {
         _projects = projects;
         _filteredProjects = projects;
+        _projectMap = projectMap;
         _isLoadingProjects = false;
       });
     } catch (e) {
@@ -366,18 +374,172 @@ class DepsPageState extends State<DepsPage> {
   }
 
   Widget nodeBuilder(Node node) {
-    var boxShadow = BoxShadow(color: Colors.blue[100]!, spreadRadius: 1);
+    String projectName = node.key!.value.toString();
+    ProjectSummary? project = _projectMap[projectName];
+    
+    Color backgroundColor = _getFrameworkColor(project?.targetFramework ?? 'unknown');
+    Color textColor = _getContrastColor(backgroundColor);
+    
     return InkWell(
-        onTap: () {
-          print('Tapped on node: ${node.key}');
-        },
-        child: Container(
-           padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-             borderRadius: BorderRadius.circular(4),
-            boxShadow: [boxShadow],
+      onTap: () {
+        if (project != null) {
+          _showProjectDetails(project);
+        } else {
+          print('Project not found: $projectName');
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.all(12),
+        constraints: BoxConstraints(minWidth: 120, maxWidth: 200),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[400]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              projectName,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (project?.targetFramework != null && project!.targetFramework.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  project.targetFramework,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textColor.withOpacity(0.8),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getFrameworkColor(String framework) {
+    // List of 30 distinct, visible colors that are easy to distinguish
+    final List<Color> colors = [
+      Colors.red[400]!,
+      Colors.blue[400]!,
+      Colors.green[400]!,
+      Colors.orange[400]!,
+      Colors.purple[400]!,
+      Colors.teal[400]!,
+      Colors.pink[400]!,
+      Colors.indigo[400]!,
+      Colors.cyan[400]!,
+      Colors.amber[400]!,
+      Colors.deepOrange[400]!,
+      Colors.lightGreen[400]!,
+      Colors.deepPurple[400]!,
+      Colors.brown[400]!,
+      Colors.blueGrey[400]!,
+      Colors.lime[400]!,
+      Colors.yellow[600]!, // Darker yellow for better visibility
+      Colors.red[600]!,
+      Colors.blue[600]!,
+      Colors.green[600]!,
+      Colors.orange[600]!,
+      Colors.purple[600]!,
+      Colors.teal[600]!,
+      Colors.pink[600]!,
+      Colors.indigo[600]!,
+      Colors.cyan[600]!,
+      Colors.deepOrange[600]!,
+      Colors.lightGreen[600]!,
+      Colors.deepPurple[600]!,
+      Colors.brown[600]!,
+    ];
+
+    if (framework.isEmpty || framework.toLowerCase() == 'unknown') {
+      return Colors.grey[400]!;
+    }
+
+    // Create a hash from the framework name
+    int hash = framework.toLowerCase().hashCode;
+    
+    // Ensure positive number and get index within our color range
+    int colorIndex = hash.abs() % colors.length;
+    
+    return colors[colorIndex];
+  }
+
+  Color _getContrastColor(Color backgroundColor) {
+    // Calculate luminance to determine if we need dark or light text
+    double luminance = backgroundColor.computeLuminance();
+    return luminance > 0.5 ? Colors.black87 : Colors.white;
+  }
+
+  void _showProjectDetails(ProjectSummary project) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(project.name),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Repository', project.repoName),
+              _buildDetailRow('Target Framework', project.targetFramework),
+              _buildDetailRow('Base Path', project.basePath),
+              _buildDetailRow('Project File', project.projectFile),
+              if (project.mainFile.isNotEmpty)
+                _buildDetailRow('Main File', project.mainFile),
+            ],
           ),
-          child: Text(node.key!.value.toString()),
-        ));
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value.isEmpty ? 'N/A' : value,
+              style: TextStyle(color: Colors.grey[700]),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
