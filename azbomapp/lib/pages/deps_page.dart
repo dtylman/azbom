@@ -28,19 +28,31 @@ class DepsPageState extends State<DepsPage> {
       print('Adding edge from ${ref.from} to ${ref.to}');
       graph.addEdge(Node.Id(ref.from), Node.Id(ref.to));
     }
-    return InteractiveViewer(
-      constrained: false,
-      child: GraphView(
-        graph: graph,
-        algorithm:  SugiyamaAlgorithm(
-              SugiyamaConfiguration()
-                ..bendPointShape = MaxCurvedBendPointShape()
-                ..levelSeparation = 50
-                ..nodeSeparation = 30
-                ..orientation = SugiyamaConfiguration.ORIENTATION_LEFT_RIGHT,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return InteractiveViewer(
+          constrained: false,
+          minScale: 0.01,
+          maxScale: 2.0,
+          boundaryMargin: EdgeInsets.all(20),
+          scaleEnabled: true,
+          panEnabled: true,
+          child: Transform.scale(
+            scale: 0.3, // Start at 30% scale to fit better
+            child: GraphView(
+              graph: graph,
+              algorithm: SugiyamaAlgorithm(
+                SugiyamaConfiguration()
+                  ..bendPointShape = MaxCurvedBendPointShape()
+                  ..levelSeparation = 50
+                  ..nodeSeparation = 30
+                  ..orientation = SugiyamaConfiguration.ORIENTATION_LEFT_RIGHT,
+              ),
+              builder: nodeBuilder,
             ),
-        builder: nodeBuilder,
-      ),
+          ),
+        );
+      },
     );
   }
 
