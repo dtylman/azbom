@@ -269,7 +269,7 @@ class DepsPageState extends State<DepsPage> {
         return InteractiveViewer(
           constrained: false,
           minScale: 0.01,
-          maxScale: 2.0,
+          maxScale: 4.0,
           boundaryMargin: EdgeInsets.all(20),
           scaleEnabled: true,
           panEnabled: true,
