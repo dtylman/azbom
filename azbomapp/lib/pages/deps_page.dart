@@ -23,6 +23,8 @@ class DepsPageState extends State<DepsPage> {
   bool _showProjectDropdown = false;
   Graph? _graph;
   Map<String, ProjectSummary> _projectMap = {};
+  String? _focusedProjectNode;
+  TransformationController _transformationController = TransformationController();
 
   @override
   void initState() {
@@ -33,6 +35,7 @@ class DepsPageState extends State<DepsPage> {
   @override
   void dispose() {
     _projectSearchController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -102,7 +105,10 @@ class DepsPageState extends State<DepsPage> {
                                                   _showProjectDropdown = false;
                                                   _references = null;
                                                   _graph = null;
+                                                  _focusedProjectNode = null;
                                                 });
+                                                // Reset the transformation
+                                                _transformationController.value = Matrix4.identity();
                                               },
                                             ),
                                           IconButton(
@@ -267,6 +273,7 @@ class DepsPageState extends State<DepsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return InteractiveViewer(
+          transformationController: _transformationController,
           constrained: false,
           minScale: 0.01,
           maxScale: 4.0,
@@ -336,6 +343,7 @@ class DepsPageState extends State<DepsPage> {
     if (_selectedProject == null) {
       setState(() {
         _graph = null;
+        _focusedProjectNode = null;
       });
       return;
     }
@@ -361,24 +369,49 @@ class DepsPageState extends State<DepsPage> {
       setState(() {
         _references = refs;
         _graph = graph;
+        _focusedProjectNode = _selectedProject;
         _isLoading = false;
+      });
+      
+      // Center the focused node after the graph is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _centerOnFocusedNode();
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
         _graph = null;
+        _focusedProjectNode = null;
       });
       // Handle error - you might want to show a snackbar or dialog
       print('Error loading references: $e');
     }
   }
 
+  void _centerOnFocusedNode() {
+    if (_focusedProjectNode == null) return;
+    
+    // Reset transformation to center the graph
+    // Since we don't have direct access to node positions in GraphView,
+    // we'll reset the view to show the entire graph centered
+    _transformationController.value = Matrix4.identity()
+      ..scale(0.3); // Match our initial scale
+  }
+
   Widget nodeBuilder(Node node) {
     String projectName = node.key!.value.toString();
     ProjectSummary? project = _projectMap[projectName];
     
+    bool isFocusedNode = projectName == _focusedProjectNode;
     Color backgroundColor = _getFrameworkColor(project?.targetFramework ?? 'unknown');
     Color textColor = _getContrastColor(backgroundColor);
+    
+    // Enhance focused node appearance
+    if (isFocusedNode) {
+      backgroundColor = backgroundColor.withOpacity(1.0); // Full opacity for focused node
+    } else {
+      backgroundColor = backgroundColor.withOpacity(0.8); // Slightly transparent for other nodes
+    }
     
     return InkWell(
       onTap: () {
@@ -394,12 +427,16 @@ class DepsPageState extends State<DepsPage> {
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[400]!, width: 1),
+          border: Border.all(
+            color: isFocusedNode ? Colors.blue[800]! : Colors.grey[400]!, 
+            width: isFocusedNode ? 3 : 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
+              color: isFocusedNode ? Colors.blue.withOpacity(0.3) : Colors.black26,
+              blurRadius: isFocusedNode ? 8 : 4,
               offset: Offset(2, 2),
+              spreadRadius: isFocusedNode ? 2 : 0,
             ),
           ],
         ),
@@ -410,7 +447,7 @@ class DepsPageState extends State<DepsPage> {
             Text(
               projectName,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: isFocusedNode ? 16 : 14,
                 fontWeight: FontWeight.bold,
                 color: textColor,
               ),
@@ -424,7 +461,7 @@ class DepsPageState extends State<DepsPage> {
                 child: Text(
                   project.targetFramework,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isFocusedNode ? 13 : 12,
                     color: textColor.withOpacity(0.8),
                   ),
                   textAlign: TextAlign.center,
