@@ -259,9 +259,5 @@ func (s *Server) updateDBWithCredentials(ctx context.Context, orgURL, pat string
 	}
 
 	s.db = a.GetDB()
-	err = s.db.Save()
-	if err != nil {
-		return err
-	}
-	return s.db.Load()
+	return s.db.Save()
 }

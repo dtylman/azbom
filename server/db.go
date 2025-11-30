@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -20,42 +18,24 @@ func (s *Server) onUpdateDBTimer() {
 		age := time.Since(s.db.Created)
 		log.Printf("Database is %v hours old,", age.Hours())
 		if age > time.Duration(config.Options.MaxAge)*time.Hour {
-			err := s.updateDB(context.Background())
-			if err != nil {
-				log.Printf("Error updating database: %v", err)
-			}
+			log.Printf("Database is old but no automatic refresh configured. Use the frontend refresh feature.")
 		}
 	}
 }
 
 func (s *Server) initDB(ctx context.Context) error {
-	if config.Options.OrganizationURL == "" {
-		return errors.New("organization URL is not set (use env var: ORGANIZATION_URL)")
-	}
-	if config.Options.Pat == "" {
-		return errors.New("personal access token is not set (use env var: PAT)")
-	}
-
-	// install the timer for updating the database every MaxAge hours
+	// install the timer for monitoring database age
 	s.dbTicker = time.NewTicker(time.Hour)
 
 	go s.onUpdateDBTimer()
 
-	// load the database
-	return s.db.Load()
-}
-
-func (s *Server) updateDB(ctx context.Context) error {
-	log.Printf("Updating database")
-
-	a := sbom.NewAnalyzer(config.Options.OrganizationURL, config.Options.Pat)
-
-	err := a.Analyze(ctx)
+	// Try to load existing database, create empty one if it doesn't exist
+	err := s.db.Load()
 	if err != nil {
-		return fmt.Errorf("error analyzing: %v", err)
+		log.Printf("Could not load existing database: %v. Starting with empty database.", err)
+		// Initialize with empty database
+		s.db = sbom.NewFile()
 	}
 
-	s.db = a.GetDB()
-
-	return s.db.Save()
+	return nil
 }

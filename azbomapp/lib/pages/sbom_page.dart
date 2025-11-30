@@ -14,6 +14,7 @@ class _SbomPageState extends State<SbomPage> {
   final List<PlutoRow> rows = [];
   dynamic _bom = [];
   bool _isRefreshing = false;
+  String? _initialDbTimestamp;
   
   // Controllers for the input fields
   final TextEditingController _organizationUrlController = TextEditingController();
@@ -82,7 +83,10 @@ class _SbomPageState extends State<SbomPage> {
                   ),
                   SizedBox(width: 16),
                   ElevatedButton(
-                    onPressed: _isRefreshing ? null : _refreshDatabase,
+                    onPressed: _isRefreshing ? _stopRefresh : _refreshDatabase,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isRefreshing ? Colors.orange : null,
+                    ),
                     child: _isRefreshing
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
@@ -90,10 +94,10 @@ class _SbomPageState extends State<SbomPage> {
                               SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               ),
                               SizedBox(width: 8),
-                              Text('Refreshing...'),
+                              Text('Stop Refresh'),
                             ],
                           )
                         : Text('Refresh Database'),
@@ -178,6 +182,10 @@ class _SbomPageState extends State<SbomPage> {
     });
 
     try {
+      // Get the current database timestamp before refresh
+      var versionInfo = await Backend.getVersion();
+      _initialDbTimestamp = versionInfo['db_created'];
+
       var response = await Backend.refreshDatabase(organizationUrl, pat);
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,7 +196,7 @@ class _SbomPageState extends State<SbomPage> {
         ),
       );
 
-      // Poll for updates every 10 seconds for 5 minutes
+      // Start polling for database changes
       _startPollingForUpdates();
       
     } catch (e) {
@@ -206,40 +214,73 @@ class _SbomPageState extends State<SbomPage> {
     }
   }
 
-  void _startPollingForUpdates() {
-    // Poll for updates every 10 seconds for up to 5 minutes
-    int pollCount = 0;
-    const maxPolls = 30; // 5 minutes with 10-second intervals
-    
-    Future.delayed(Duration(seconds: 10), () {
-      _pollForUpdates(pollCount, maxPolls);
+  void _stopRefresh() {
+    setState(() {
+      _isRefreshing = false;
     });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Refresh monitoring stopped'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  void _startPollingForUpdates() {
+    // Start polling immediately, then every 10 seconds
+    _pollForUpdates(0, 60); // Poll for up to 10 minutes
   }
 
   void _pollForUpdates(int pollCount, int maxPolls) async {
-    if (pollCount >= maxPolls || !_isRefreshing) {
+    if (pollCount >= maxPolls) {
       setState(() {
         _isRefreshing = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Refresh timeout - please check if the database was updated'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
     try {
-      // Refresh the SBOM data
-      _getBOM();
+      // Check if the database timestamp has changed
+      var versionInfo = await Backend.getVersion();
+      String currentTimestamp = versionInfo['db_created'];
+      
+      if (currentTimestamp != _initialDbTimestamp) {
+        // Database has been updated, refresh the table
+        _getBOM();
+        setState(() {
+          _isRefreshing = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Database refresh completed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        return;
+      }
       
       // Continue polling
       pollCount++;
-      Future.delayed(Duration(seconds: 10), () {
+      await Future.delayed(Duration(seconds: 10));
+      if (_isRefreshing) {
         _pollForUpdates(pollCount, maxPolls);
-      });
+      }
       
     } catch (e) {
       // If there's an error, continue polling (the refresh might still be in progress)
       pollCount++;
-      Future.delayed(Duration(seconds: 10), () {
+      await Future.delayed(Duration(seconds: 10));
+      if (_isRefreshing) {
         _pollForUpdates(pollCount, maxPolls);
-      });
+      }
     }
   }
 
