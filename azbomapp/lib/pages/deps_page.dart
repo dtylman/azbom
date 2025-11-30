@@ -25,20 +25,20 @@ class DepsPageState extends State<DepsPage> {
     }
     Graph graph = Graph();
     for (ProjectReference ref in _references!.references) {
+      print('Adding edge from ${ref.from} to ${ref.to}');
       graph.addEdge(Node.Id(ref.from), Node.Id(ref.to));
     }
     return InteractiveViewer(
       constrained: false,
       child: GraphView(
         graph: graph,
-        algorithm: SugiyamaAlgorithm(
-          SugiyamaConfiguration()..orientation = SugiyamaConfiguration.ORIENTATION_LEFT_RIGHT,
-        ),
-        // algorithm: FruchtermanReingoldAlgorithm(
-        //   attractionPercentage: 1,
-        //   renderer: ArrowEdgeRenderer(),
-        //   repulsionRate: 2,
-        // ),
+        algorithm:  SugiyamaAlgorithm(
+              SugiyamaConfiguration()
+                ..bendPointShape = MaxCurvedBendPointShape()
+                ..levelSeparation = 50
+                ..nodeSeparation = 30
+                ..orientation = SugiyamaConfiguration.ORIENTATION_LEFT_RIGHT,
+            ),
         builder: nodeBuilder,
       ),
     );
@@ -46,7 +46,7 @@ class DepsPageState extends State<DepsPage> {
 
   void loadRefs() async {
     ReferencesRequest? req = ReferencesRequest(
-        project: 'JifiTool',
+        project: 'ConsumerFinancing.Web',
         dependsOn: true,
         dependsBy: true,
         onlyMyProjects: true);
