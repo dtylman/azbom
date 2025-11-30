@@ -11,6 +11,19 @@ class DepsPage extends StatefulWidget {
 
 class DepsPageState extends State<DepsPage> {
   ReferencesResponse? _references;
+  String _selectedProject = 'ConsumerFinancing.Web';
+  bool _dependsOn = true;
+  bool _dependsBy = true;
+  bool _onlyMyProjects = true;
+  bool _isLoading = false;
+
+  // Add more projects as needed
+  final List<String> _projects = [
+    'ConsumerFinancing.Web',
+    'ConsumerFinancing.API',
+    'ConsumerFinancing.Core',
+    'ConsumerFinancing.Data',
+  ];
 
   @override
   void initState() {
@@ -20,6 +33,126 @@ class DepsPageState extends State<DepsPage> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Controls Panel
+        Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Project:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        SizedBox(height: 4),
+                        DropdownButtonFormField<String>(
+                          value: _selectedProject,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          items: _projects.map((String project) {
+                            return DropdownMenuItem<String>(
+                              value: project,
+                              child: Text(project),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedProject = newValue;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Options:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                title: Text('Depends On'),
+                                value: _dependsOn,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _dependsOn = value ?? false;
+                                  });
+                                },
+                                controlAffinity: ListTileControlAffinity.leading,
+                                dense: true,
+                              ),
+                            ),
+                            Expanded(
+                              child: CheckboxListTile(
+                                title: Text('Depends By'),
+                                value: _dependsBy,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _dependsBy = value ?? false;
+                                  });
+                                },
+                                controlAffinity: ListTileControlAffinity.leading,
+                                dense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        CheckboxListTile(
+                          title: Text('Only My Projects'),
+                          value: _onlyMyProjects,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _onlyMyProjects = value ?? false;
+                            });
+                          },
+                          controlAffinity: ListTileControlAffinity.leading,
+                          dense: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : loadRefs,
+                    child: _isLoading 
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text('Render Graph'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Graph Area
+        Expanded(
+          child: _buildGraphArea(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGraphArea() {
     if (_references == null) {
       return Center(child: CircularProgressIndicator());
     }
@@ -57,15 +190,28 @@ class DepsPageState extends State<DepsPage> {
   }
 
   void loadRefs() async {
-    ReferencesRequest? req = ReferencesRequest(
-        project: 'ConsumerFinancing.Web',
-        dependsOn: true,
-        dependsBy: true,
-        onlyMyProjects: true);
-    ReferencesResponse refs = await Backend.getRefs(req);
     setState(() {
-      _references = refs;
+      _isLoading = true;
     });
+    
+    try {
+      ReferencesRequest req = ReferencesRequest(
+          project: _selectedProject,
+          dependsOn: _dependsOn,
+          dependsBy: _dependsBy,
+          onlyMyProjects: _onlyMyProjects);
+      ReferencesResponse refs = await Backend.getRefs(req);
+      setState(() {
+        _references = refs;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle error - you might want to show a snackbar or dialog
+      print('Error loading references: $e');
+    }
   }
 
   Widget nodeBuilder(Node node) {
